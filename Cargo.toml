@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 bytes = "1" # 高效处理网络 buffer 的库
 dashmap = "6.1.0"
+http = "1.3.1"
 prost = "0.9" # 处理 protobuf 的代码
 thiserror = "2.0.12"
 tracing = "0.1" # 日志处理

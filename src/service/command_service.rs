@@ -32,6 +32,46 @@ impl CommandService for Hset {
     }
 }
 
+impl CommandService for Hmget{
+    fn execute(self, store: &impl Storage) -> CommandResponse {
+        // let mut list:Vec<Value> = vec![];
+        // for x in &self.keys {
+        //     match store.get(&self.table,x) {
+        //         Ok(Some(v)) => list.push(v.into()),
+        //         Ok(None) => list.push(Value::default().into()),
+        //         Err(e) => list.push(e.into()),
+        //     }
+        // }
+        // list.into()
+        // 使用迭代器比循环更好
+        self.keys.iter().map(|key|match store.get(&self.table,key){
+            Ok(Some(v)) => v,
+            _ => Value::default(),
+        }).collect::<Vec<_>>().into()
+
+    }
+}
+
+impl CommandService for Hmset{
+    fn execute(self, store: &impl Storage) -> CommandResponse {
+        // let mut list:Vec<Value> = vec![];
+        // for pair in self.pairs {
+        //     match store.set(&self.table, pair.key, pair.value.unwrap_or_default()) {
+        //         Ok(Some(v)) => list.push(v.into()),
+        //         _ => list.push(Value::default().into()),
+        //     }
+        // }
+        // list.into()
+        let table = self.table;
+        let pairs = self.pairs;
+        // into_iter会拿走 pairs的所有权
+        pairs.into_iter().map(|pair| match store.set(&table, pair.key, pair.value.unwrap_or_default()) { 
+            Ok(Some(v)) => v,
+            _ => Value::default(),
+        }).collect::<Vec<_>>().into()
+    }
+}
+
 
 
 #[cfg(test)]
@@ -88,12 +128,53 @@ mod tests {
         assert_res_ok(res, &[], pairs);
     }
 
+    #[test]
+    fn hmget_should_work() {
+        let store = MemTable::new();
+        let cmds = vec![
+            CommandRequest::new_hset("score", "u1", 10.into()),
+            CommandRequest::new_hset("score", "u2", 8.into()),
+            CommandRequest::new_hset("score", "u3", 11.into()),
+        ];
+        for cmd in cmds {
+            dispatch(cmd, &store);
+        }
+        let v = vec!["u1".to_string(),"u2".to_string()];
+        let cmd = CommandRequest::new_hmget("score",v);
+        let res = dispatch(cmd, &store);
+        let values = &[10.into(),8.into()];
+        assert_res_ok(res,values,&[]);
+    }
+    
+    #[test]
+    fn hmset_should_work(){
+        let store = MemTable::new();
+        let cmd = CommandRequest::new_hmset("t1", vec![Kvpair::new("u1",Value::from("hello")),Kvpair::new("u2", Value::from("world"))]);
+        let res = dispatch(cmd.clone(), &store);
+        assert_res_ok(res, &[Value::default(),Value::default()], &[]);
+        let res = dispatch(cmd, &store);
+        assert_res_ok(res, &["hello".into(),"world".into()], &[]);
+        
+    }
+
+    #[test]
+    fn hmget_with_non_exist_key_should_return_404() {
+        let store = MemTable::new();
+        let v = vec!["u1".to_string(),"u2".to_string()];
+        let cmd = CommandRequest::new_hmget("score",v);
+        let res = dispatch(cmd, &store);
+        let values = &[Value::default(),Value::default()];
+        assert_res_ok(res,values,&[]);
+    }
+
     // 从 Request 中得到 Response，目前处理 HGET/HGETALL/HSET
     fn dispatch(cmd: CommandRequest, store: &impl Storage) -> CommandResponse {
         match cmd.request_data.unwrap() {
             RequestData::Hget(v) => v.execute(store),
             RequestData::Hgetall(v) => v.execute(store),
             RequestData::Hset(v) => v.execute(store),
+            RequestData::Hmget(v)=> v.execute(store),
+            RequestData::Hmset(v) => v.execute(store),
             _ => todo!(),
         }
     }

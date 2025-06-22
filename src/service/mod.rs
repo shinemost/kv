@@ -1,6 +1,6 @@
+use crate::*;
 use std::sync::Arc;
 use tracing::debug;
-use crate::*;
 mod command_service;
 
 pub trait CommandService {
@@ -53,14 +53,11 @@ pub fn dispatch(cmd: CommandRequest, store: &impl Storage) -> CommandResponse {
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
-    use std::thread;
     use super::*;
     use crate::{MemTable, Value};
+    use std::thread;
 
     #[test]
     fn service_should_works() {
@@ -83,9 +80,9 @@ mod tests {
     }
 }
 
+use crate::command_request::RequestData;
 #[cfg(test)]
 use crate::{Kvpair, Value};
-use crate::command_request::RequestData;
 
 // 测试成功返回的结果
 #[cfg(test)]

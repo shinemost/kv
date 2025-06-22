@@ -1,8 +1,8 @@
 pub mod abi;
 
-use http::StatusCode;
-use abi::{command_request::RequestData, *};
 use crate::KvError;
+use abi::{command_request::RequestData, *};
+use http::StatusCode;
 
 impl CommandRequest {
     /// 创建 HSET 命令
@@ -16,29 +16,73 @@ impl CommandRequest {
     }
 
     pub fn new_hget(table: impl Into<String>, key: impl Into<String>) -> Self {
-        Self{
-            request_data: Some(RequestData::Hget(Hget {table: table.into(), key: key.into()})),
+        Self {
+            request_data: Some(RequestData::Hget(Hget {
+                table: table.into(),
+                key: key.into(),
+            })),
         }
     }
 
     pub fn new_hgetall(table: impl Into<String>) -> Self {
-        Self{
-            request_data: Some(RequestData::Hgetall(Hgetall{table: table.into()})),
+        Self {
+            request_data: Some(RequestData::Hgetall(Hgetall {
+                table: table.into(),
+            })),
         }
     }
-    
+
     pub fn new_hmget(table: impl Into<String>, keys: Vec<String>) -> Self {
-        Self{
-            request_data: Some(RequestData::Hmget(Hmget{table: table.into(), keys})),
+        Self {
+            request_data: Some(RequestData::Hmget(Hmget {
+                table: table.into(),
+                keys,
+            })),
         }
     }
-    
+
     pub fn new_hmset(table: impl Into<String>, pairs: Vec<Kvpair>) -> Self {
-        Self{
-            request_data: Some(RequestData::Hmset(Hmset{
-                table:table.into(),
+        Self {
+            request_data: Some(RequestData::Hmset(Hmset {
+                table: table.into(),
                 pairs,
-            }))
+            })),
+        }
+    }
+
+    pub fn new_hdel(table: impl Into<String>, key: impl Into<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hdel(Hdel {
+                table: table.into(),
+                key: key.into(),
+            })),
+        }
+    }
+
+    pub fn new_hmdel(table: impl Into<String>, keys: Vec<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hmdel(Hmdel {
+                table: table.into(),
+                keys,
+            })),
+        }
+    }
+
+    pub fn new_hexist(table: impl Into<String>, key: impl Into<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hexist(Hexist {
+                table: table.into(),
+                key: key.into(),
+            })),
+        }
+    }
+
+    pub fn new_hmexist(table: impl Into<String>, keys: Vec<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hmexist(Hmexist {
+                table: table.into(),
+                keys,
+            })),
         }
     }
 }
@@ -73,8 +117,16 @@ impl From<&str> for Value {
 
 impl From<i64> for Value {
     fn from(i: i64) -> Self {
-        Self{
+        Self {
             value: Some(value::Value::Integer(i)),
+        }
+    }
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Self {
+            value: Some(value::Value::Bool(value)),
         }
     }
 }
@@ -86,7 +138,6 @@ impl From<KvError> for Value {
         }
     }
 }
-
 
 /// 从 Value 转换成 CommandResponse
 impl From<Value> for CommandResponse {
@@ -132,7 +183,7 @@ impl From<KvError> for CommandResponse {
 
 impl From<Vec<Value>> for CommandResponse {
     fn from(v: Vec<Value>) -> Self {
-        Self{
+        Self {
             status: StatusCode::OK.as_u16() as _,
             values: v,
             ..Default::default()

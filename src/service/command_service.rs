@@ -1,7 +1,7 @@
 use crate::*;
 
 impl CommandService for Hget {
-    fn execute(self, store: &impl Storage) -> CommandResponse {
+    fn execute(self, store: &dyn Storage) -> CommandResponse {
         match store.get(&self.table, &self.key) {
             Ok(Some(v)) => v.into(),
             Ok(None) => KvError::NotFound(self.table, self.key).into(),
@@ -11,7 +11,7 @@ impl CommandService for Hget {
 }
 
 impl CommandService for Hgetall {
-    fn execute(self, store: &impl Storage) -> CommandResponse {
+    fn execute(self, store: &dyn Storage) -> CommandResponse {
         // match store.get_all(&self.table) {
         //     Ok(v) => v.into(),
         //     Err(e) => e.into(),
@@ -22,20 +22,20 @@ impl CommandService for Hgetall {
 }
 
 impl CommandService for Hset {
-    fn execute(self, store: &impl Storage) -> CommandResponse {
+    fn execute(self, store: &dyn Storage) -> CommandResponse {
         match self.pair {
             Some(v) => match store.set(&self.table, v.key, v.value.unwrap_or_default()) {
                 Ok(Some(v)) => v.into(),
                 Ok(None) => Value::default().into(),
                 Err(e) => e.into(),
             },
-            None => Value::default().into(),
+            None => KvError::InvalidCommand(format!("{:?}", self)).into(),
         }
     }
 }
 
 impl CommandService for Hmget {
-    fn execute(self, store: &impl Storage) -> CommandResponse {
+    fn execute(self, store: &dyn Storage) -> CommandResponse {
         // let mut list:Vec<Value> = vec![];
         // for x in &self.keys {
         //     match store.get(&self.table,x) {
@@ -58,7 +58,7 @@ impl CommandService for Hmget {
 }
 
 impl CommandService for Hmset {
-    fn execute(self, store: &impl Storage) -> CommandResponse {
+    fn execute(self, store: &dyn Storage) -> CommandResponse {
         // let mut list:Vec<Value> = vec![];
         // for pair in self.pairs {
         //     match store.set(&self.table, pair.key, pair.value.unwrap_or_default()) {
@@ -84,7 +84,7 @@ impl CommandService for Hmset {
 }
 
 impl CommandService for Hdel {
-    fn execute(self, store: &impl Storage) -> CommandResponse {
+    fn execute(self, store: &dyn Storage) -> CommandResponse {
         match store.del(&self.table, &self.key) {
             Ok(Some(v)) => v.into(),
             Ok(None) => KvError::NotFound(self.table, self.key).into(),
@@ -94,7 +94,7 @@ impl CommandService for Hdel {
 }
 
 impl CommandService for Hmdel {
-    fn execute(self, store: &impl Storage) -> CommandResponse {
+    fn execute(self, store: &dyn Storage) -> CommandResponse {
         let keys = self.keys;
         keys.into_iter()
             .map(|key| match store.del(&self.table, &key) {
@@ -108,7 +108,7 @@ impl CommandService for Hmdel {
 }
 
 impl CommandService for Hexist {
-    fn execute(self, store: &impl Storage) -> CommandResponse {
+    fn execute(self, store: &dyn Storage) -> CommandResponse {
         match store.contains(&self.table, &self.key) {
             Ok(v) => Value::from(v).into(),
             Err(e) => e.into(),
@@ -117,7 +117,7 @@ impl CommandService for Hexist {
 }
 
 impl CommandService for Hmexist {
-    fn execute(self, store: &impl Storage) -> CommandResponse {
+    fn execute(self, store: &dyn Storage) -> CommandResponse {
         let keys = self.keys;
         keys.into_iter()
             .map(|key| match store.contains(&self.table, &key) {

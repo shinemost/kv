@@ -5,7 +5,6 @@ use thiserror::Error;
 pub enum KvError {
     #[error("Not found for table: {0}, key: {1}")]
     NotFound(String, String),
-
     #[error("Command is invalid: `{0}`")]
     InvalidCommand(String),
     #[error("Cannot convert value {0:?} To {1}")]

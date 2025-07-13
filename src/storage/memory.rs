@@ -55,13 +55,35 @@ impl Storage for MemTable {
     }
 
     fn get_iter(&self, table: &str) -> Result<Box<dyn Iterator<Item = Kvpair>>, KvError> {
-        let table = self.get_or_create_table(table);
-        Ok(Box::new(table.clone().into_iter().map(|v| v.into())))
+        let table = self.get_or_create_table(table).clone();
+        let iter = StorageIter::new(table.into_iter());
+        Ok(Box::new(iter))
     }
 }
 
 impl From<(String, Value)> for Kvpair {
     fn from(value: (String, Value)) -> Self {
         Kvpair::new(value.0, value.1)
+    }
+}
+
+pub struct StorageIter<T> {
+    data: T,
+}
+
+impl<T> StorageIter<T> {
+    pub fn new(data: T) -> Self {
+        Self { data }
+    }
+}
+
+impl<T> Iterator for StorageIter<T>
+where
+    T: Iterator,
+    T::Item: Into<Kvpair>,
+{
+    type Item = Kvpair;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.data.next().map(|v| v.into())
     }
 }

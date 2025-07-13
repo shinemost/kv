@@ -35,7 +35,9 @@ impl Service {
     pub fn execute(&self, cmd: CommandRequest) -> CommandResponse {
         debug!("Got request: {:?}", cmd);
         // TODO: 发送 on_received 事件
-        let res = dispatch(cmd, &*self.store);
+        // self.store.deref()解引用 Arc<dyn Storage> -> &dyn Storage
+        // self.store.as_ref()同理
+        let res = dispatch(cmd, self.store.as_ref());
         debug!("Executed response: {:?}", res);
         // TODO: 发送 on_executed 事件
 

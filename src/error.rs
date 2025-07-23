@@ -19,4 +19,7 @@ pub enum KvError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("permission denied: {0}")]
+    PermissionDenied(String),
 }

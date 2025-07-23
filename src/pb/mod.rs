@@ -183,6 +183,7 @@ impl From<KvError> for CommandResponse {
         match e {
             KvError::NotFound(_, _) => result.status = StatusCode::NOT_FOUND.as_u16() as _,
             KvError::InvalidCommand(_) => result.status = StatusCode::BAD_REQUEST.as_u16() as _,
+            KvError::PermissionDenied(_) => result.status = StatusCode::FORBIDDEN.as_u16() as _,
             _ => {}
         }
 

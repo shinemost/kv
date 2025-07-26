@@ -22,4 +22,7 @@ pub enum KvError {
 
     #[error("permission denied: {0}")]
     PermissionDenied(String),
+
+    #[error("Not found for table: {0}")]
+    TableNotFound(String),
 }

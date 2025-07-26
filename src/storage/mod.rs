@@ -1,12 +1,13 @@
 mod memory;
+mod rocksdb;
 mod sleddb;
 
-pub use sleddb::SledDb;
 pub use memory::MemTable;
+pub use sleddb::SledDb;
 
 use crate::{KvError, Kvpair, Value};
 
-pub trait Storage: Send + Sync+'static {
+pub trait Storage: Send + Sync + 'static {
     /// 从一个 HashTable 里获取一个 key 的 value
     fn get(&self, table: &str, key: &str) -> Result<Option<Value>, KvError>;
     /// 从一个 HashTable 里设置一个 key 的 value，返回旧的 value
@@ -45,12 +46,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::rocksdb::Rocksdb;
     use tempfile::tempdir;
 
     #[test]
     fn memtable_basic_interface_should_work() {
         let store = MemTable::new();
-        test_basi_interface(store);
+        test_base_interface(store);
     }
 
     #[test]
@@ -58,14 +60,14 @@ mod tests {
         let store = MemTable::new();
         test_get_all(store);
     }
-    
+
     #[test]
     fn memtable_get_iter_should_work() {
         let store = MemTable::new();
         test_get_iter(store);
     }
 
-    fn test_basi_interface(store: impl Storage) {
+    fn test_base_interface(store: impl Storage) {
         // 第一次 set 会创建 table，插入 key 并返回 None（之前没值）
         let v = store.set("t1", "hello".into(), "world".into());
         assert!(v.unwrap().is_none());
@@ -79,9 +81,9 @@ mod tests {
 
         // get 不存在的 key 或者 table 会得到 None
         assert_eq!(Ok(None), store.get("t1", "hello1"));
-        assert!(store.get("t2", "hello1").unwrap().is_none());
+        assert!(store.get("t3", "hello1").unwrap().is_none());
 
-        // contains 纯在的 key 返回 true，否则 false
+        // // contains 纯在的 key 返回 true，否则 false
         assert_eq!(store.contains("t1", "hello"), Ok(true));
         assert_eq!(store.contains("t1", "hello1"), Ok(false));
         assert_eq!(store.contains("t2", "hello"), Ok(false));
@@ -109,7 +111,6 @@ mod tests {
         )
     }
 
-   
     fn test_get_iter(store: impl Storage) {
         store.set("t2", "k1".into(), "v1".into()).unwrap();
         store.set("t2", "k2".into(), "v2".into()).unwrap();
@@ -128,7 +129,7 @@ mod tests {
     fn sleddb_basic_interface_should_work() {
         let dir = tempdir().unwrap();
         let store = SledDb::new(dir);
-        test_basi_interface(store);
+        test_base_interface(store);
     }
 
     #[test]
@@ -142,6 +143,27 @@ mod tests {
     fn sleddb_iter_should_work() {
         let dir = tempdir().unwrap();
         let store = SledDb::new(dir);
+        test_get_iter(store);
+    }
+
+    #[test]
+    fn rocksdb_basic_interface_should_work() {
+        let dir = tempdir().unwrap();
+        let store = Rocksdb::new(dir);
+        test_base_interface(store);
+    }
+
+    #[test]
+    fn rocksdb_get_all_should_work() {
+        let dir = tempdir().unwrap();
+        let store = Rocksdb::new(dir);
+        test_get_all(store);
+    }
+
+    #[test]
+    fn rocksdb_iter_should_work() {
+        let dir = tempdir().unwrap();
+        let store = Rocksdb::new(dir);
         test_get_iter(store);
     }
 }

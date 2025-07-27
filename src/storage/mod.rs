@@ -1,9 +1,10 @@
 mod memory;
-mod rocksdb;
 mod sleddb;
+mod rocksdb;
 
 pub use memory::MemTable;
 pub use sleddb::SledDb;
+pub use rocksdb::Rocksdb;
 
 use crate::{KvError, Kvpair, Value};
 

@@ -1,8 +1,10 @@
 use anyhow::Result;
-use async_prost::AsyncProstStream;
+use bytes::BytesMut;
 use futures::prelude::*;
+use prost::Message;
 use kv::{CommandRequest, CommandResponse};
 use tokio::net::TcpStream;
+use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::info;
 
 #[tokio::main]
@@ -13,17 +15,18 @@ async fn main() -> Result<()> {
     // 连接服务器
     let stream = TcpStream::connect(addr).await?;
 
-    // 使用 AsyncProstStream 来处理 TCP Frame
-    let mut client =
-        AsyncProstStream::<_, CommandResponse, CommandRequest, _>::from(stream).for_async();
+    let mut stream = Framed::new(stream, LengthDelimitedCodec::new());
 
     // 生成一个 HSET 命令
     let cmd = CommandRequest::new_hset("table1", "hello", "world".into());
 
+    let mut buf = BytesMut::new();
+    cmd.encode(&mut buf)?;
     // 发送 HSET 命令
-    client.send(cmd).await?;
-    if let Some(Ok(data)) = client.next().await {
-        info!("Got response {:?}", data);
+    stream.send(buf.freeze()).await?;
+    if let Some(Ok(data)) = stream.next().await {
+        let res = CommandResponse::decode(&data[..])?;
+        info!("Got response {:?}", res);
     }
 
     Ok(())

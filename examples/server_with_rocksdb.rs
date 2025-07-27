@@ -1,8 +1,9 @@
 use anyhow::Result;
-use async_prost::AsyncProstStream;
 use futures::prelude::*;
+use prost::Message;
 use kv::{CommandRequest, CommandResponse, Service, Rocksdb};
 use tokio::net::TcpListener;
+use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::info;
 
 #[tokio::main]
@@ -23,12 +24,15 @@ async fn main() -> Result<()> {
         let (stream, addr) = listener.accept().await?;
         info!("Client {:?} connected", addr);
         let svc = service.clone();
+        let mut stream = Framed::new(stream, LengthDelimitedCodec::new());
         tokio::spawn(async move {
-            let mut stream =
-                AsyncProstStream::<_, CommandRequest, CommandResponse, _>::from(stream).for_async();
-            while let Some(Ok(cmd)) = stream.next().await {
+            while let Some(Ok(mut buf)) = stream.next().await {
+                let cmd = CommandRequest::decode(&buf[..]).unwrap();
+                info!("Got a new command: {:?}", cmd);
                 let res = svc.execute(cmd);
-                if let Err(e) = stream.send(res).await {
+                buf.clear();
+                res.encode(&mut buf).unwrap();
+                if let Err(e) = stream.send(buf.freeze()).await {
                     info!("Failed to send response to client {:?}: {}", addr, e);
                     break;
                 }

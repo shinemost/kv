@@ -7,6 +7,9 @@ server-selddb:
 server-rocksdb:
 	RUST_LOG=info cargo run --example server_with_rocksdb --quiet
 
+server-codec:
+	RUST_LOG=info cargo run --example server_with_codec --quiet
+
 client:
 	RUST_LOG=info cargo run --example client --quiet
 

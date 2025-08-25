@@ -89,10 +89,3 @@ fn ivec_to_key(ivec: &[u8]) -> &str {
     iter.next();
     iter.next().unwrap()
 }
-
-
-impl From<sled::Error> for KvError {
-    fn from(error: sled::Error) -> Self {
-        KvError::Internal(error.to_string())  // 假设你的 KvError 有这个变体
-    }
-}

@@ -1,10 +1,10 @@
 mod memory;
 mod sleddb;
-mod rocksdb;
+// mod rocksdb;
 
 pub use memory::MemTable;
 pub use sleddb::SledDb;
-pub use rocksdb::Rocksdb;
+// pub use rocksdb::Rocksdb;
 
 use crate::{KvError, Kvpair, Value};
 
@@ -47,7 +47,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::rocksdb::Rocksdb;
+    // use crate::storage::rocksdb::Rocksdb;
     use tempfile::tempdir;
 
     #[test]
@@ -74,28 +74,28 @@ mod tests {
         assert!(v.unwrap().is_none());
         // 再次 set 同样的 key 会更新，并返回之前的值
         let v1 = store.set("t1", "hello".into(), "world1".into());
-        assert_eq!(v1, Ok(Some("world".into())));
+        assert_eq!(v1.unwrap(), Some("world".into()));
 
         // get 存在的 key 会得到最新的值
         let v = store.get("t1", "hello");
-        assert_eq!(v, Ok(Some("world1".into())));
+        assert_eq!(v.unwrap(), Some("world1".into()));
 
         // get 不存在的 key 或者 table 会得到 None
-        assert_eq!(Ok(None), store.get("t1", "hello1"));
+        assert_eq!(None, store.get("t1", "hello1").unwrap());
         assert!(store.get("t3", "hello1").unwrap().is_none());
 
         // // contains 纯在的 key 返回 true，否则 false
-        assert_eq!(store.contains("t1", "hello"), Ok(true));
-        assert_eq!(store.contains("t1", "hello1"), Ok(false));
-        assert_eq!(store.contains("t2", "hello"), Ok(false));
+        assert!(store.contains("t1", "hello").unwrap());
+        assert!(!store.contains("t1", "hello1").unwrap());
+        assert!(!store.contains("t2", "hello").unwrap());
 
         // del 存在的 key 返回之前的值
         let v = store.del("t1", "hello");
-        assert_eq!(v, Ok(Some("world1".into())));
+        assert_eq!(v.unwrap(), Some("world1".into()));
 
         // del 不存在的 key 或 table 返回 None
-        assert_eq!(Ok(None), store.del("t1", "hello1"));
-        assert_eq!(Ok(None), store.del("t2", "hello"));
+        assert_eq!(None, store.del("t1", "hello1").unwrap());
+        assert_eq!(None, store.del("t2", "hello").unwrap());
     }
 
     fn test_get_all(store: impl Storage) {
@@ -147,24 +147,24 @@ mod tests {
         test_get_iter(store);
     }
 
-    #[test]
-    fn rocksdb_basic_interface_should_work() {
-        let dir = tempdir().unwrap();
-        let store = Rocksdb::new(dir);
-        test_base_interface(store);
-    }
+    // #[test]
+    // fn rocksdb_basic_interface_should_work() {
+    //     let dir = tempdir().unwrap();
+    //     let store = Rocksdb::new(dir);
+    //     test_base_interface(store);
+    // }
 
-    #[test]
-    fn rocksdb_get_all_should_work() {
-        let dir = tempdir().unwrap();
-        let store = Rocksdb::new(dir);
-        test_get_all(store);
-    }
+    // #[test]
+    // fn rocksdb_get_all_should_work() {
+    //     let dir = tempdir().unwrap();
+    //     let store = Rocksdb::new(dir);
+    //     test_get_all(store);
+    // }
 
-    #[test]
-    fn rocksdb_iter_should_work() {
-        let dir = tempdir().unwrap();
-        let store = Rocksdb::new(dir);
-        test_get_iter(store);
-    }
+    // #[test]
+    // fn rocksdb_iter_should_work() {
+    //     let dir = tempdir().unwrap();
+    //     let store = Rocksdb::new(dir);
+    //     test_get_iter(store);
+    // }
 }

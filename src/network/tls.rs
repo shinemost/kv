@@ -150,7 +150,6 @@ fn load_key(key: &str) -> Result<PrivateKey, KvError> {
 
 #[cfg(test)]
 mod tests {
-
     use std::net::SocketAddr;
 
     use super::*;

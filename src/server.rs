@@ -10,8 +10,9 @@ async fn main() -> Result<()> {
 
     let server_cert = include_str!("../fixtures/server.cert");
     let server_key = include_str!("../fixtures/server.key");
+    let ca_cert = include_str!("../fixtures/ca.cert");
 
-    let acceptor = TlsServerAcceptor::new(server_cert, server_key, None)?;
+    let acceptor = TlsServerAcceptor::new(server_cert, server_key, Some(ca_cert))?;
 
     let service: Service = Service::new(MemTable::new()).into();
     let listener = TcpListener::bind(addr).await?;

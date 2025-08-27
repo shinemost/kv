@@ -9,10 +9,12 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let ca_cert = include_str!("../fixtures/ca.cert");
+    let client_cert = include_str!("../fixtures/client.cert");
+    let client_key = include_str!("../fixtures/client.key");
 
     let addr = "127.0.0.1:9527";
     // 连接服务器
-    let connector = TlsClientConnector::new("kvserver.acme.inc",None,Some(ca_cert))?;
+    let connector = TlsClientConnector::new("kvserver.acme.inc",Some((client_cert,client_key)),Some(ca_cert))?;
     let stream = TcpStream::connect(addr).await?;
     let stream = connector.connect(stream).await?;
 

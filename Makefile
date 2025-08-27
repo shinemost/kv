@@ -11,7 +11,10 @@ server-codec:
 	RUST_LOG=info cargo run --example server_with_codec --quiet
 
 client:
-	RUST_LOG=info cargo run --example client --quiet
+	RUST_LOG=info cargo run --bin kvc --quiet
+
+server:
+	RUST_LOG=info cargo run --bin kvs --quiet
 
 build:
 	RUSTFLAGS="-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld" cargo build

@@ -101,7 +101,9 @@ where
     S: AsyncRead + Unpin + Send,
 {
     let header = stream.read_u32().await? as usize;
+    println!("Header received: {}", header);
     let (len, _compressed) = decode_header(header);
+    println!("Frame length: {}", len);
     // 如果没有这么大的内存，就分配至少一个 frame 的内存，保证它可用
     buf.reserve(LEN_LEN + len);
     buf.put_u32(header as _);

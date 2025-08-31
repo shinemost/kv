@@ -1,8 +1,7 @@
 use anyhow::Result;
+use kv::{CommandRequest, ProstClientStream, TlsClientConnector};
 use tokio::net::TcpStream;
 use tracing::info;
-use tracing_subscriber::fmt::init;
-use kv::{CommandRequest, ProstClientStream, TlsClientConnector};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -14,7 +13,11 @@ async fn main() -> Result<()> {
 
     let addr = "127.0.0.1:9527";
     // 连接服务器
-    let connector = TlsClientConnector::new("kvserver.acme.inc",Some((client_cert,client_key)),Some(ca_cert))?;
+    let connector = TlsClientConnector::new(
+        "kvserver.acme.inc",
+        Some((client_cert, client_key)),
+        Some(ca_cert),
+    )?;
     let stream = TcpStream::connect(addr).await?;
     let stream = connector.connect(stream).await?;
 

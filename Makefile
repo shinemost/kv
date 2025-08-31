@@ -10,13 +10,19 @@ server-rocksdb:
 server-codec:
 	RUST_LOG=info cargo run --example server_with_codec --quiet
 
-client:
+kvc:
 	RUST_LOG=info cargo run --bin kvc --quiet
 
-server:
+kvs:
 	RUST_LOG=info cargo run --bin kvs --quiet
+
+kvnc:
+	RUST_LOG=info cargo run --bin kvnc --quiet
+
+kvns:
+	RUST_LOG=info cargo run --bin kvns --quiet
 
 build:
 	RUSTFLAGS="-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld" cargo build
 
-.PHONY: server client build
+.PHONY: kvs kvc build kvnc kvns

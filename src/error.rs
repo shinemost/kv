@@ -21,6 +21,9 @@ pub enum KvError {
     #[error("I/O error")]
     IoError(#[from] std::io::Error),
 
+    #[error("Failed to build initiator")]
+    NoiseBuildInitiatorError(#[from] snow::error::Error),
+
     #[error("Internal error: {0}")]
     Internal(String),
 
@@ -29,7 +32,6 @@ pub enum KvError {
 
     #[error("Not found for table: {0}")]
     TableNotFound(String),
-
     #[error("Frame is larger than max size")]
     FrameError,
 
@@ -38,5 +40,4 @@ pub enum KvError {
 
     #[error("TLS error")]
     TlsError(#[from] tokio_rustls::rustls::TLSError),
-
 }

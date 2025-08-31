@@ -11,6 +11,14 @@ path = "src/server.rs"
 name = "kvc"
 path = "src/client.rs"
 
+[[bin]]
+name = "kvns"
+path = "src/server_noise.rs"
+
+[[bin]]
+name = "kvnc"
+path = "src/client_noise.rs"
+
 [dependencies]
 anyhow = "1" # 错误处理
 bytes = "1"       # 高效处理网络 buffer 的库
@@ -21,11 +29,13 @@ prost = "0.9"     # 处理 protobuf 的代码
 rustls-native-certs = "0.5"
 # rocksdb = "0.24.0"
 sled = "0.34.7"
+snow = "0.10.0"
 thiserror = "2.0.12"
 tokio = { version = "1", features = ["full"] }
 tokio-rustls = "0.22"
 tracing = "0.1"# 日志处理
-tracing-subscriber = "0.3" # 日志处理
+tracing-subscriber = "0.3"
+base64 = "0.13.1" # 日志处理
 
 
 [dev-dependencies]

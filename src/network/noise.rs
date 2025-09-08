@@ -27,19 +27,13 @@ pub struct NoiseClientConnector {
 pub struct NoiseConfig {
     pub static_key: Option<Vec<u8>>,
     pub remote_public_key: Option<Vec<u8>>,
-    pub is_initiator: bool,
 }
 
 impl NoiseConfig {
-    pub fn new(
-        static_key: Option<Vec<u8>>,
-        remote_public_key: Option<Vec<u8>>,
-        is_initiator: bool,
-    ) -> Self {
+    pub fn new(static_key: Option<Vec<u8>>, remote_public_key: Option<Vec<u8>>) -> Self {
         Self {
             static_key,
             remote_public_key,
-            is_initiator,
         }
     }
 }
@@ -167,7 +161,7 @@ impl NoiseClientConnector {
         static_key: Option<Vec<u8>>,
         remote_public_key: Option<Vec<u8>>,
     ) -> Result<Self, KvError> {
-        let config = NoiseConfig::new(static_key, remote_public_key, true);
+        let config = NoiseConfig::new(static_key, remote_public_key);
 
         Ok(Self {
             config: Arc::new(config),
@@ -213,7 +207,7 @@ impl NoiseClientConnector {
 impl NoiseServerAcceptor {
     /// 创建新的 Noise 服务器接收器
     pub fn new(static_key: Option<Vec<u8>>) -> Result<Self, KvError> {
-        let config = NoiseConfig::new(static_key, None, false);
+        let config = NoiseConfig::new(static_key, None);
 
         Ok(Self {
             config: Arc::new(config),
@@ -283,7 +277,7 @@ mod tests {
     const SERVER_PRIVATE_KEY: &str = "JIxScvo9HTaq2XANzJ6qaN4D9yRFjrXU88eg+YORCu0=";
     const SERVER_PUBLIC_KEY: &str = "td93qlE0OqmfSyzxwkIMW2qDTbwDQZYSKqOdpgzPlQQ=";
     const CLIENT_PRIVATE_KEY: &str = "qRHG7HlaAQi+npHO+Wne6UegYI966bzgbUlA+1RlCBI=";
-    const CLIENT_PUBLIC_KEY: &str = "87RyNtKl+piief594pgehOBYZ/YBx4qxIMhGJzGNGRg=";
+    const _CLIENT_PUBLIC_KEY: &str = "87RyNtKl+piief594pgehOBYZ/YBx4qxIMhGJzGNGRg=";
 
     #[tokio::test]
     async fn noise_should_work() -> Result<()> {
@@ -344,8 +338,8 @@ mod tests {
     async fn start_server(static_key: Option<Vec<u8>>) -> Result<std::net::SocketAddr> {
         let acceptor = NoiseServerAcceptor::new(static_key)?;
 
-        let echo = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = echo.local_addr().unwrap();
+        let echo = TcpListener::bind("127.0.0.1:0").await?;
+        let addr = echo.local_addr()?;
 
         tokio::spawn(async move {
             let (stream, _) = echo.accept().await.unwrap();

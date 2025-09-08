@@ -1,25 +1,27 @@
 mod frame;
-mod tls;
 mod noise;
+mod stream;
+mod tls;
 
-use bytes::BytesMut;
-pub use frame::{read_frame, FrameCoder};
+pub use frame::{FrameCoder, read_frame};
+use futures::{SinkExt, StreamExt};
+pub use noise::{NoiseClientConnector, NoiseServerAcceptor, load_key};
 pub use tls::{TlsClientConnector, TlsServerAcceptor};
-pub use noise::{NoiseClientConnector,NoiseServerAcceptor,load_key};
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::info;
 
+use crate::network::stream::ProstStream;
 use crate::{CommandRequest, CommandResponse, KvError, Service};
 
 /// 处理服务器端的某个 accept 下来的 socket 的读写
 pub struct ProstServerStream<S> {
-    inner: S,
+    inner: ProstStream<S, CommandRequest, CommandResponse>,
     service: Service,
 }
 
 /// 处理客户端 socket 的读写
 pub struct ProstClientStream<S> {
-    inner: S,
+    inner: ProstStream<S, CommandResponse, CommandRequest>,
 }
 
 impl<S> ProstServerStream<S>
@@ -28,34 +30,20 @@ where
 {
     pub fn new(stream: S, service: Service) -> Self {
         Self {
-            inner: stream,
+            inner: ProstStream::new(stream),
             service,
         }
     }
 
     pub async fn process(mut self) -> Result<(), KvError> {
-        while let Ok(cmd) = self.recv().await {
+        let stream = &mut self.inner;
+        while let Some(Ok(cmd)) = stream.next().await {
             info!("Got a new command: {:?}", cmd);
             let res = self.service.execute(cmd);
-            self.send(res).await?;
+            stream.send(res).await?;
         }
         // info!("Client {:?} disconnected", self.addr);
         Ok(())
-    }
-
-    async fn send(&mut self, msg: CommandResponse) -> Result<(), KvError> {
-        let mut buf = BytesMut::new();
-        msg.encode_frame(&mut buf)?;
-        let encoded = buf.freeze();
-        self.inner.write_all(&encoded[..]).await?;
-        Ok(())
-    }
-
-    async fn recv(&mut self) -> Result<CommandRequest, KvError> {
-        let mut buf = BytesMut::new();
-        let stream = &mut self.inner;
-        read_frame(stream, &mut buf).await?;
-        CommandRequest::decode_frame(&mut buf)
     }
 }
 
@@ -64,27 +52,18 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send,
 {
     pub fn new(stream: S) -> Self {
-        Self { inner: stream }
+        Self {
+            inner: ProstStream::new(stream),
+        }
     }
 
     pub async fn execute(&mut self, cmd: CommandRequest) -> Result<CommandResponse, KvError> {
-        self.send(cmd).await?;
-        Ok(self.recv().await?)
-    }
-
-    async fn send(&mut self, msg: CommandRequest) -> Result<(), KvError> {
-        let mut buf = BytesMut::new();
-        msg.encode_frame(&mut buf)?;
-        let encoded = buf.freeze();
-        self.inner.write_all(&encoded[..]).await?;
-        Ok(())
-    }
-
-    async fn recv(&mut self) -> Result<CommandResponse, KvError> {
-        let mut buf = BytesMut::new();
         let stream = &mut self.inner;
-        read_frame(stream, &mut buf).await?;
-        CommandResponse::decode_frame(&mut buf)
+        stream.send(cmd).await?;
+        stream
+            .next()
+            .await
+            .unwrap_or_else(|| Err(KvError::Internal("didn't get any response".into())))
     }
 }
 
@@ -95,7 +74,7 @@ mod tests {
     use std::net::SocketAddr;
     use tokio::net::{TcpListener, TcpStream};
 
-    use crate::{assert_res_ok, MemTable, Value};
+    use crate::{MemTable, Value, assert_res_ok};
 
     use super::*;
 
@@ -159,5 +138,54 @@ mod tests {
         });
 
         Ok(addr)
+    }
+}
+
+#[cfg(test)]
+pub mod utils {
+    use bytes::{BufMut, BytesMut};
+    use std::task::Poll;
+    use tokio::io::{AsyncRead, AsyncWrite};
+
+    pub struct DummyStream {
+        pub buf: BytesMut,
+    }
+
+    impl AsyncRead for DummyStream {
+        fn poll_read(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+            buf: &mut tokio::io::ReadBuf<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            let len = buf.capacity();
+            let data = self.get_mut().buf.split_to(len);
+            buf.put_slice(&data);
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    impl AsyncWrite for DummyStream {
+        fn poll_write(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+            buf: &[u8],
+        ) -> Poll<Result<usize, std::io::Error>> {
+            self.get_mut().buf.put_slice(buf);
+            Poll::Ready(Ok(buf.len()))
+        }
+
+        fn poll_flush(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> Poll<Result<(), std::io::Error>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_shutdown(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> Poll<Result<(), std::io::Error>> {
+            Poll::Ready(Ok(()))
+        }
     }
 }

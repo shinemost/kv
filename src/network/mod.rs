@@ -1,4 +1,5 @@
 mod frame;
+mod multiplex;
 mod noise;
 mod stream;
 mod tls;
@@ -144,9 +145,11 @@ mod tests {
 #[cfg(test)]
 pub mod utils {
     use bytes::{BufMut, BytesMut};
+    use std::cmp::min;
     use std::task::Poll;
     use tokio::io::{AsyncRead, AsyncWrite};
 
+    #[derive(Default)]
     pub struct DummyStream {
         pub buf: BytesMut,
     }
@@ -157,8 +160,9 @@ pub mod utils {
             _cx: &mut std::task::Context<'_>,
             buf: &mut tokio::io::ReadBuf<'_>,
         ) -> Poll<std::io::Result<()>> {
-            let len = buf.capacity();
-            let data = self.get_mut().buf.split_to(len);
+            let this = self.get_mut();
+            let len = min(buf.capacity(), this.buf.len());
+            let data = this.buf.split_to(len);
             buf.put_slice(&data);
             Poll::Ready(Ok(()))
         }

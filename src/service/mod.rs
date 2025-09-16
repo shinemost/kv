@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{CommandRequest, CommandResponse, KvError, Storage, command_request::RequestData};
 use futures::stream;
 use std::sync::Arc;
 use tracing::debug;
@@ -6,6 +6,9 @@ use tracing::debug;
 mod command_service;
 mod topic;
 mod topic_service;
+
+pub use topic::{Broadcaster, Topic};
+pub use topic_service::{StreamingResponse, TopicService};
 
 pub trait CommandService {
     fn execute(self, store: &dyn Storage) -> CommandResponse;
@@ -280,9 +283,6 @@ mod tests {
     }
 }
 
-use crate::command_request::RequestData;
-use crate::service::topic::{Broadcaster, Topic};
-use crate::service::topic_service::{StreamingResponse, TopicService};
 #[cfg(test)]
 use crate::{Kvpair, Value};
 

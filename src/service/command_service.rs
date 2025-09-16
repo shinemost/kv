@@ -4,7 +4,7 @@ impl CommandService for Hget {
     fn execute(self, store: &dyn Storage) -> CommandResponse {
         match store.get(&self.table, &self.key) {
             Ok(Some(v)) => v.into(),
-            Ok(None) => KvError::NotFound(self.table, self.key).into(),
+            Ok(None) => KvError::NotFound(format!("table {},key {}", self.table, self.key)).into(),
             Err(e) => e.into(),
         }
     }
@@ -91,7 +91,7 @@ impl CommandService for Hdel {
     fn execute(self, store: &dyn Storage) -> CommandResponse {
         match store.del(&self.table, &self.key) {
             Ok(Some(v)) => v.into(),
-            Ok(None) => KvError::NotFound(self.table, self.key).into(),
+            Ok(None) => KvError::NotFound(format!("table {},key {}", self.table, self.key)).into(),
             Err(e) => e.into(),
         }
     }
@@ -103,7 +103,7 @@ impl CommandService for Hmdel {
         keys.into_iter()
             .map(|key| match store.del(&self.table, &key) {
                 Ok(Some(v)) => v.into(),
-                Ok(None) => KvError::NotFound(self.table.clone(), key).into(),
+                Ok(None) => KvError::NotFound(format!("table {},key {}", self.table, key)).into(),
                 Err(e) => e.into(),
             })
             .collect::<Vec<Value>>()

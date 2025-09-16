@@ -1,10 +1,11 @@
 use anyhow::Result;
+use bytes::BytesMut;
 use futures::prelude::*;
+use kv::{CommandRequest, MemTable, Service};
 use prost::Message;
 use tokio::net::TcpListener;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::info;
-use kv::{CommandRequest, MemTable, Service};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -22,10 +23,13 @@ async fn main() -> Result<()> {
             while let Some(Ok(mut buf)) = stream.next().await {
                 let cmd = CommandRequest::decode(&buf[..]).unwrap();
                 info!("Got a new command: {:?}", cmd);
-                let res = svc.execute(cmd);
+                let mut res = svc.execute(cmd);
                 buf.clear();
-                res.encode(&mut buf).unwrap();
-                stream.send(buf.freeze()).await.unwrap();
+                while let Some(data) = res.next().await {
+                    let mut buf = BytesMut::new();
+                    data.encode(&mut buf).unwrap();
+                    stream.send(buf.freeze()).await.unwrap();
+                }
             }
             info!("Client {:?} disconnected", addr);
         });

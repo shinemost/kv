@@ -27,10 +27,9 @@ async fn main() -> Result<()> {
             let mut stream =
                 AsyncProstStream::<_, CommandRequest, CommandResponse, _>::from(stream).for_async();
             while let Some(Ok(cmd)) = stream.next().await {
-                let res = svc.execute(cmd);
-                if let Err(e) = stream.send(res).await {
-                    info!("Failed to send response to client {:?}: {}", addr, e);
-                    break;
+                let mut res = svc.execute(cmd);
+                while let Some(data) = res.next().await {
+                    stream.send((*data).clone()).await.unwrap();
                 }
             }
             info!("Client {:?} disconnected", addr);

@@ -1,4 +1,3 @@
-use crate::Value;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -7,8 +6,8 @@ pub enum KvError {
     NotFound(String, String),
     #[error("Command is invalid: `{0}`")]
     InvalidCommand(String),
-    #[error("Cannot convert value {0:?} To {1}")]
-    ConvertError(Value, &'static str),
+    #[error("Cannot convert value {0} To {1}")]
+    ConvertError(String, &'static str),
     #[error("Cannot process command {0} with table: {1}, key: {2}. Error: {3}")]
     StorageError(&'static str, String, String, String),
 

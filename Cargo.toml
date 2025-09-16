@@ -39,6 +39,7 @@ base64 = "0.13.1" # 日志处理
 futures = "0.3"
 yamux = "0.9"
 tokio-util = { version = "0.6", features = ["compat"] }
+tokio-stream = "0.1.17"
 
 
 [dev-dependencies]

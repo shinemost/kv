@@ -40,8 +40,10 @@ where
         let stream = &mut self.inner;
         while let Some(Ok(cmd)) = stream.next().await {
             info!("Got a new command: {:?}", cmd);
-            let res = self.service.execute(cmd);
-            stream.send(res).await?;
+            let mut res = self.service.execute(cmd);
+            while let Some(data) = res.next().await {
+                stream.send(&data).await?;
+            }
         }
         // info!("Client {:?} disconnected", self.addr);
         Ok(())
@@ -60,7 +62,7 @@ where
 
     pub async fn execute(&mut self, cmd: CommandRequest) -> Result<CommandResponse, KvError> {
         let stream = &mut self.inner;
-        stream.send(cmd).await?;
+        stream.send(&cmd).await?;
         stream
             .next()
             .await
@@ -80,7 +82,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn client_server_basic_communication_should_work() -> anyhow::Result<()> {
+    async fn client_server_basic_communication_should_work() -> Result<()> {
         let addr = start_server().await?;
 
         let stream = TcpStream::connect(addr).await?;
@@ -89,23 +91,23 @@ mod tests {
         // 发送 HSET，等待回应
 
         let cmd = CommandRequest::new_hset("t1", "k1", "v1".into());
-        let res = client.execute(cmd).await.unwrap();
+        let res = client.execute(cmd).await?;
 
         // 第一次 HSET 服务器应该返回 None
-        assert_res_ok(res, &[Value::default()], &[]);
+        assert_res_ok(&res, &[Value::default()], &[]);
 
         // 再发一个 HSET
         let cmd = CommandRequest::new_hget("t1", "k1");
         let res = client.execute(cmd).await?;
 
         // 服务器应该返回上一次的结果
-        assert_res_ok(res, &["v1".into()], &[]);
+        assert_res_ok(&res, &["v1".into()], &[]);
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn client_server_compression_should_work() -> anyhow::Result<()> {
+    async fn client_server_compression_should_work() -> Result<()> {
         let addr = start_server().await?;
 
         let stream = TcpStream::connect(addr).await?;
@@ -115,19 +117,19 @@ mod tests {
         let cmd = CommandRequest::new_hset("t2", "k2", v.clone().into());
         let res = client.execute(cmd).await?;
 
-        assert_res_ok(res, &[Value::default()], &[]);
+        assert_res_ok(&res, &[Value::default()], &[]);
 
         let cmd = CommandRequest::new_hget("t2", "k2");
         let res = client.execute(cmd).await?;
 
-        assert_res_ok(res, &[v.into()], &[]);
+        assert_res_ok(&res, &[v.into()], &[]);
 
         Ok(())
     }
 
     async fn start_server() -> Result<SocketAddr> {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let addr = listener.local_addr()?;
 
         tokio::spawn(async move {
             loop {

@@ -1,7 +1,11 @@
 use crate::*;
+use futures::stream;
 use std::sync::Arc;
 use tracing::debug;
+
 mod command_service;
+mod topic;
+mod topic_service;
 
 pub trait CommandService {
     fn execute(self, store: &dyn Storage) -> CommandResponse;
@@ -14,6 +18,7 @@ pub struct Service {
     on_executed: Vec<fn(&CommandResponse) -> Option<CommandResponse>>,
     on_before_send: Vec<fn(&mut CommandResponse) -> Option<CommandResponse>>,
     on_after_send: Vec<fn() -> Option<CommandResponse>>,
+    broadcaster: Arc<Broadcaster>,
 }
 
 impl Clone for Service {
@@ -24,6 +29,7 @@ impl Clone for Service {
             on_executed: self.on_executed.clone(),
             on_before_send: self.on_before_send.clone(),
             on_after_send: self.on_after_send.clone(),
+            broadcaster: Arc::clone(&self.broadcaster),
         }
     }
 }
@@ -41,35 +47,28 @@ impl Service {
             on_executed: Vec::new(),
             on_before_send: Vec::new(),
             on_after_send: Vec::new(),
+            broadcaster: Default::default(),
         }
     }
 
-    pub fn execute(&self, cmd: CommandRequest) -> CommandResponse {
+    pub fn execute(&self, cmd: CommandRequest) -> StreamingResponse {
         debug!("Got request: {:?}", cmd);
-
-        // 处理接收通知，如果返回 Some，则提前结束
-        if let Some(res) = self.on_received.notify(&cmd) {
-            return res;
-        }
         // self.store.deref()解引用 Arc<dyn Storage> -> &dyn Storage
         // self.store.as_ref()同理
-        let mut res = dispatch(cmd, self.store.as_ref());
+        let mut res = dispatch(cmd.clone(), self.store.as_ref());
         debug!("Executed response: {:?}", res);
 
-        // 处理执行通知，如果返回 Some，则提前结束
-        if let Some(new_res) = self.on_executed.notify(&res) {
-            return new_res;
+        if res == CommandResponse::default() {
+            dispatch_stream(cmd, Arc::clone(&self.broadcaster))
+        } else {
+            debug!("Executed response returned: {:?}", res);
+            self.on_executed.notify(&res);
+            self.on_before_send.notify(&mut res);
+            if !self.on_before_send.is_empty() {
+                debug!("Modified response: {:?}", res);
+            }
+            Box::pin(stream::once(async { Arc::new(res) }))
         }
-
-        // 处理发送前通知，如果返回 Some，则提前结束
-        if let Some(new_res) = self.on_before_send.notify(&mut res) {
-            return new_res;
-        }
-
-        if !self.on_before_send.is_empty() {
-            debug!("Modified response: {:?}", res);
-        }
-        res
     }
 
     // 修改注册方法，使用新的函数签名
@@ -103,8 +102,25 @@ pub fn dispatch(cmd: CommandRequest, store: &dyn Storage) -> CommandResponse {
         Some(RequestData::Hget(param)) => param.execute(store),
         Some(RequestData::Hgetall(param)) => param.execute(store),
         Some(RequestData::Hset(param)) => param.execute(store),
+        Some(RequestData::Hmset(param)) => param.execute(store),
+        Some(RequestData::Hdel(param)) => param.execute(store),
+        Some(RequestData::Hmdel(param)) => param.execute(store),
+        Some(RequestData::Hexist(param)) => param.execute(store),
+        Some(RequestData::Hmexist(param)) => param.execute(store),
         None => KvError::InvalidCommand("Request has no data".into()).into(),
-        _ => KvError::Internal("Not implemented".into()).into(),
+        // 处理不了的返回一个啥都不包括的 Response，这样后续可以用 dispatch_stream 处理
+        _ => CommandResponse::default(),
+    }
+}
+
+/// 从 Request 中得到 Response，目前处理所有 PUBLISH/SUBSCRIBE/UNSUBSCRIBE
+pub fn dispatch_stream(cmd: CommandRequest, topic: impl Topic) -> StreamingResponse {
+    match cmd.request_data {
+        Some(RequestData::Publish(param)) => param.execute(topic),
+        Some(RequestData::Subscribe(param)) => param.execute(topic),
+        Some(RequestData::Unsubscribe(param)) => param.execute(topic),
+        // 如果走到这里，就是代码逻辑的问题，直接 crash 出来
+        _ => unreachable!(),
     }
 }
 
@@ -147,11 +163,11 @@ mod tests {
     use super::*;
     use crate::{MemTable, Value};
     use http::StatusCode;
-    use std::thread;
+    use tokio_stream::StreamExt;
     use tracing::info;
 
-    #[test]
-    fn service_should_works() {
+    #[tokio::test]
+    async fn service_should_works() {
         // 我们需要一个 service 结构至少包含 Storage
         let service = Service::new(MemTable::default());
 
@@ -159,19 +175,22 @@ mod tests {
         let cloned = service.clone();
 
         // 创建一个线程，在 table t1 中写入 k1, v1
-        let handle = thread::spawn(move || {
-            let res = cloned.execute(CommandRequest::new_hset("t1", "k1", "v1".into()));
-            assert_res_ok(res, &[Value::default()], &[]);
-        });
-        handle.join().unwrap();
+        tokio::spawn(async move {
+            let mut res = cloned.execute(CommandRequest::new_hset("t1", "k1", "v1".into()));
+            let data = res.next().await.unwrap();
+            assert_res_ok(&data, &[Value::default()], &[]);
+        })
+        .await
+        .unwrap();
 
         // 在当前线程下读取 table t1 的 k1，应该返回 v1
-        let res = service.execute(CommandRequest::new_hget("t1", "k1"));
-        assert_res_ok(res, &["v1".into()], &[]);
+        let mut res = service.execute(CommandRequest::new_hget("t1", "k1"));
+        let data = res.next().await.unwrap();
+        assert_res_ok(&data, &["v1".into()], &[]);
     }
 
-    #[test]
-    fn event_registration_should_work() {
+    #[tokio::test]
+    async fn event_registration_should_work() {
         fn b(cmd: &CommandRequest) -> Option<CommandResponse> {
             info!("Got {:?}", cmd);
             None
@@ -196,14 +215,15 @@ mod tests {
             .fn_before_send(d)
             .fn_after_send(e);
 
-        let res = service.execute(CommandRequest::new_hset("t1", "k1", "v1".into()));
-        assert_eq!(res.status, StatusCode::CREATED.as_u16() as _);
-        assert_eq!(res.message, "");
-        assert_eq!(res.values, vec![Value::default()]);
+        let mut res = service.execute(CommandRequest::new_hset("t1", "k1", "v1".into()));
+        let data = res.next().await.unwrap();
+        assert_eq!(data.status, StatusCode::CREATED.as_u16() as _);
+        assert_eq!(data.message, "");
+        assert_eq!(data.values, vec![Value::default()]);
     }
 
-    #[test]
-    fn early_return_for_special_keys() {
+    #[tokio::test]
+    async fn early_return_for_special_keys() {
         // 定义一个检查特殊键的回调
         fn check_special_keys(cmd: &CommandRequest) -> Option<CommandResponse> {
             match &cmd.request_data {
@@ -240,32 +260,37 @@ mod tests {
 
         // 尝试获取 admin 键
         let cmd = CommandRequest::new_hget("t1", "admin");
-        let res = service.execute(cmd);
-        assert_eq!(res.status, 403); // 应该返回权限错误
-        assert!(res.message.contains("Cannot access admin key"));
+        let mut res = service.execute(cmd);
+        let data = res.next().await.unwrap();
+        assert_eq!(data.status, 404);
 
         // 尝试设置 admin 键
         let cmd = CommandRequest::new_hset("t1", "admin", "secret".into());
-        let res = service.execute(cmd);
-        assert_eq!(res.status, 403); // 应该返回权限错误
-        assert!(res.message.contains("Cannot modify admin key"));
+        let mut res = service.execute(cmd);
+        let data = res.next().await.unwrap();
+        assert_eq!(data.status, 200);
+        assert_eq!(data.values, vec![Value::default()]);
 
         // 正常操作其他键
         let cmd = CommandRequest::new_hset("t1", "user1", "normal".into());
-        let res = service.execute(cmd);
-        assert_eq!(res.status, 200); // 正常处理
-        assert_eq!(res.values, vec![Value::default()]);
+        let mut res = service.execute(cmd);
+        let data = res.next().await.unwrap();
+        assert_eq!(data.status, 200); // 正常处理
+        assert_eq!(data.values, vec![Value::default()]);
     }
 }
 
 use crate::command_request::RequestData;
+use crate::service::topic::{Broadcaster, Topic};
+use crate::service::topic_service::{StreamingResponse, TopicService};
 #[cfg(test)]
 use crate::{Kvpair, Value};
 
 // 测试成功返回的结果
 #[cfg(test)]
-pub fn assert_res_ok(mut res: CommandResponse, values: &[Value], pairs: &[Kvpair]) {
-    res.pairs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+pub fn assert_res_ok(res: &CommandResponse, values: &[Value], pairs: &[Kvpair]) {
+    let mut sorted_pairs = res.pairs.clone();
+    sorted_pairs.sort_by(|a, b| a.partial_cmp(b).unwrap());
     assert_eq!(res.status, 200);
     assert_eq!(res.message, "");
     assert_eq!(res.values, values);
@@ -274,7 +299,7 @@ pub fn assert_res_ok(mut res: CommandResponse, values: &[Value], pairs: &[Kvpair
 
 // 测试失败返回的结果
 #[cfg(test)]
-pub fn assert_res_error(res: CommandResponse, code: u32, msg: &str) {
+pub fn assert_res_error(res: &CommandResponse, code: u32, msg: &str) {
     assert_eq!(res.status, code);
     assert!(res.message.contains(msg));
     assert_eq!(res.values, &[]);

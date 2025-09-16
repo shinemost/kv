@@ -17,7 +17,11 @@ impl CommandService for Hgetall {
         //     Err(e) => e.into(),
         // }
         // 使用迭代器是否更好？
-        store.get_iter(&self.table).unwrap().collect::<Vec<_>>().into()
+        store
+            .get_iter(&self.table)
+            .unwrap()
+            .collect::<Vec<_>>()
+            .into()
     }
 }
 
@@ -303,6 +307,7 @@ mod tests {
             RequestData::Hmdel(v) => v.execute(store),
             RequestData::Hexist(v) => v.execute(store),
             RequestData::Hmexist(v) => v.execute(store),
+            _ => unreachable!(),
         }
     }
 

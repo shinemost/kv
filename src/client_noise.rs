@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
     let cmd = CommandRequest::new_hset("table1", "hello", "world".to_string().into());
 
     // 发送 HSET 命令
-    let data = client.execute(cmd).await?;
+    let data = client.execute_unary(cmd).await?;
     info!("Got response {:?}", data);
 
     Ok(())

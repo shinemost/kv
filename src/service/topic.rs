@@ -125,10 +125,10 @@ impl Broadcaster {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::assert_res_ok;
     use std::convert::TryInto;
-
-    use super::*;
+    use tokio::sync::mpsc::Receiver;
 
     #[tokio::test]
     async fn pub_sub_should_work() {
@@ -144,8 +144,8 @@ mod tests {
         b.clone().publish(lobby.clone(), Arc::new(v.clone().into()));
 
         // subscribers 应该能收到 publish 的数据
-        let id1: i64 = stream1.recv().await.unwrap().as_ref().try_into().unwrap();
-        let id2: i64 = stream2.recv().await.unwrap().as_ref().try_into().unwrap();
+        let id1 = get_id(&mut stream1).await;
+        let id2 = get_id(&mut stream2).await;
 
         assert_ne!(id1, id2);
 
@@ -166,5 +166,10 @@ mod tests {
         assert!(stream1.recv().await.is_none());
         let res2 = stream2.recv().await.unwrap();
         assert_res_ok(&res2, &[v.clone()], &[]);
+    }
+
+    pub async fn get_id(res: &mut Receiver<Arc<CommandResponse>>) -> u32 {
+        let id: i64 = res.recv().await.unwrap().as_ref().try_into().unwrap();
+        id as u32
     }
 }

@@ -2,16 +2,19 @@ mod frame;
 mod multiplex;
 mod noise;
 mod stream;
+mod stream_result;
 mod tls;
 
 pub use frame::{FrameCoder, read_frame};
 use futures::{SinkExt, StreamExt};
+pub use multiplex::YamuxCtrl;
 pub use noise::{NoiseClientConnector, NoiseServerAcceptor, load_key};
 pub use tls::{TlsClientConnector, TlsServerAcceptor};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::info;
 
 use crate::network::stream::ProstStream;
+use crate::network::stream_result::StreamResult;
 use crate::{CommandRequest, CommandResponse, KvError, Service};
 
 /// 处理服务器端的某个 accept 下来的 socket 的读写
@@ -52,7 +55,7 @@ where
 
 impl<S> ProstClientStream<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send,
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     pub fn new(stream: S) -> Self {
         Self {
@@ -60,13 +63,20 @@ where
         }
     }
 
-    pub async fn execute(&mut self, cmd: CommandRequest) -> Result<CommandResponse, KvError> {
+    pub async fn execute_unary(&mut self, cmd: CommandRequest) -> Result<CommandResponse, KvError> {
         let stream = &mut self.inner;
         stream.send(&cmd).await?;
         stream
             .next()
             .await
             .unwrap_or_else(|| Err(KvError::Internal("didn't get any response".into())))
+    }
+
+    pub async fn execute_stream(self, cmd: &CommandRequest) -> Result<StreamResult, KvError> {
+        let mut stream = self.inner;
+        stream.send(cmd).await?;
+        stream.close().await?;
+        StreamResult::new(stream).await
     }
 }
 
@@ -91,17 +101,23 @@ mod tests {
         // 发送 HSET，等待回应
 
         let cmd = CommandRequest::new_hset("t1", "k1", "v1".into());
-        let res = client.execute(cmd).await?;
+        let res = client.execute_unary(cmd).await?;
 
         // 第一次 HSET 服务器应该返回 None
         assert_res_ok(&res, &[Value::default()], &[]);
 
         // 再发一个 HSET
         let cmd = CommandRequest::new_hget("t1", "k1");
-        let res = client.execute(cmd).await?;
+        let res = client.execute_unary(cmd).await?;
 
         // 服务器应该返回上一次的结果
         assert_res_ok(&res, &["v1".into()], &[]);
+
+        // 发一个 SUBSCRIBE
+        let cmd = CommandRequest::new_subscribe("chat");
+        let res = client.execute_stream(&cmd).await?;
+        let id = res.id;
+        assert!(id > 0);
 
         Ok(())
     }
@@ -115,12 +131,12 @@ mod tests {
 
         let v: Value = Bytes::from(vec![0u8; 16384]).into();
         let cmd = CommandRequest::new_hset("t2", "k2", v.clone().into());
-        let res = client.execute(cmd).await?;
+        let res = client.execute_unary(cmd).await?;
 
         assert_res_ok(&res, &[Value::default()], &[]);
 
         let cmd = CommandRequest::new_hget("t2", "k2");
-        let res = client.execute(cmd).await?;
+        let res = client.execute_unary(cmd).await?;
 
         assert_res_ok(&res, &[v.into()], &[]);
 

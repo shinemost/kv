@@ -57,7 +57,7 @@ mod tests {
         let topic = Arc::new(Broadcaster::default());
         let cmd = CommandRequest::new_subscribe("lobby");
         let mut res = dispatch_stream(cmd, topic);
-        let id: i64 = res.next().await.unwrap().as_ref().try_into().unwrap();
+        let id = get_id(&mut res).await;
         assert!(id > 0);
     }
 
@@ -67,7 +67,7 @@ mod tests {
         let id = {
             let cmd = CommandRequest::new_subscribe("lobby");
             let mut res = dispatch_stream(cmd, topic.clone());
-            let id: i64 = res.next().await.unwrap().as_ref().try_into().unwrap();
+            let id = get_id(&mut res).await;
             drop(res);
             id as u32
         };
@@ -87,7 +87,7 @@ mod tests {
         let topic = Arc::new(Broadcaster::default());
         let cmd = CommandRequest::new_subscribe("lobby");
         let mut res = dispatch_stream(cmd, topic.clone());
-        let id: i64 = res.next().await.unwrap().as_ref().try_into().unwrap();
+        let id = get_id(&mut res).await;
 
         let cmd = CommandRequest::new_unsubscribe("lobby", id as _);
         let mut res = dispatch_stream(cmd, topic);
@@ -105,5 +105,10 @@ mod tests {
         let data = res.next().await.unwrap();
 
         assert_res_error(&data, 404, "Not found: subscription 9527");
+    }
+
+    pub async fn get_id(res: &mut StreamingResponse) -> u32 {
+        let id: i64 = res.next().await.unwrap().as_ref().try_into().unwrap();
+        id as u32
     }
 }

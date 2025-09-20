@@ -51,3 +51,10 @@ certify = "0.6"
 
 [build-dependencies]
 prost-build = "0.9" # 编译 protobuf
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

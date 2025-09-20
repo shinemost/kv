@@ -15,7 +15,7 @@ async fn main() -> Result<()> {
 
     let acceptor = TlsServerAcceptor::new(server_cert, server_key, Some(ca_cert))?;
 
-    let service: Service = Service::new(MemTable::new()).into();
+    let service: Service = Service::new(MemTable::new());
     let listener = TcpListener::bind(addr).await?;
     info!("Start listening on {}", addr);
     loop {

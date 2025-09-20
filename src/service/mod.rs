@@ -1,4 +1,4 @@
-use crate::{CommandRequest, CommandResponse, KvError, Storage, command_request::RequestData};
+use crate::{command_request::RequestData, CommandRequest, CommandResponse, KvError, Storage};
 use futures::stream;
 use std::sync::Arc;
 use tracing::debug;
@@ -37,7 +37,7 @@ impl Clone for Service {
     }
 }
 
-/// Service 内部数据结构
+// Service 内部数据结构
 // pub struct ServiceInner<Store> {
 //     store: Store,
 // }
@@ -161,6 +161,28 @@ impl<Arg> NotifyMut<Arg> for Vec<fn(&mut Arg) -> Option<CommandResponse>> {
     }
 }
 
+use crate::{Kvpair, Value};
+
+// 测试成功返回的结果
+
+pub fn assert_res_ok(res: &CommandResponse, values: &[Value], pairs: &[Kvpair]) {
+    let mut sorted_pairs = res.pairs.clone();
+    sorted_pairs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    assert_eq!(res.status, 200);
+    assert_eq!(res.message, "");
+    assert_eq!(res.values, values);
+    assert_eq!(res.pairs, pairs);
+}
+
+// 测试失败返回的结果
+
+pub fn assert_res_error(res: &CommandResponse, code: u32, msg: &str) {
+    assert_eq!(res.status, code);
+    assert!(res.message.contains(msg));
+    assert_eq!(res.values, &[]);
+    assert_eq!(res.pairs, &[]);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,27 +303,4 @@ mod tests {
         assert_eq!(data.status, 200); // 正常处理
         assert_eq!(data.values, vec![Value::default()]);
     }
-}
-
-#[cfg(test)]
-use crate::{Kvpair, Value};
-
-// 测试成功返回的结果
-#[cfg(test)]
-pub fn assert_res_ok(res: &CommandResponse, values: &[Value], pairs: &[Kvpair]) {
-    let mut sorted_pairs = res.pairs.clone();
-    sorted_pairs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    assert_eq!(res.status, 200);
-    assert_eq!(res.message, "");
-    assert_eq!(res.values, values);
-    assert_eq!(res.pairs, pairs);
-}
-
-// 测试失败返回的结果
-#[cfg(test)]
-pub fn assert_res_error(res: &CommandResponse, code: u32, msg: &str) {
-    assert_eq!(res.status, code);
-    assert!(res.message.contains(msg));
-    assert_eq!(res.values, &[]);
-    assert_eq!(res.pairs, &[]);
 }

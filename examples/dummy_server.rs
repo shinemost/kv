@@ -20,9 +20,11 @@ async fn main() -> Result<()> {
             while let Some(Ok(msg)) = stream.next().await {
                 info!("Got a new command: {:?}", msg);
                 // 创建一个 404 response 返回给客户端
-                let mut resp = CommandResponse::default();
-                resp.status = 404;
-                resp.message = "Not found".to_string();
+                let resp = CommandResponse {
+                    status: 404,
+                    message: "Not found".to_string(),
+                    ..Default::default()
+                };
                 stream.send(resp).await.unwrap();
             }
             info!("Client {:?} disconnected", addr);

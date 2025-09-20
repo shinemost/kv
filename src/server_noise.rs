@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
 
     let acceptor = NoiseServerAcceptor::new(server_key_bytes)?;
 
-    let service: Service = Service::new(MemTable::new()).into();
+    let service: Service = Service::new(MemTable::new());
     let listener = TcpListener::bind(addr).await?;
     info!("Start listening on {}", addr);
     loop {

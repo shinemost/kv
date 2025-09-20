@@ -1,6 +1,6 @@
-use crate::{FrameCoder, KvError, read_frame};
+use crate::{read_frame, FrameCoder, KvError};
 use bytes::BytesMut;
-use futures::{FutureExt, Sink, Stream, ready};
+use futures::{ready, FutureExt, Sink, Stream};
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -32,8 +32,8 @@ where
             written: 0,
             wbuf: BytesMut::new(),
             rbuf: BytesMut::new(),
-            _in: PhantomData::default(),
-            _out: PhantomData::default(),
+            _in: PhantomData,
+            _out: PhantomData,
         }
     }
 }
@@ -112,7 +112,7 @@ impl<S, Req, Res> Unpin for ProstStream<S, Req, Res> where S: Unpin {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CommandRequest, utils::DummyStream};
+    use crate::{utils::DummyStream, CommandRequest};
     use anyhow::Result;
     use futures::prelude::*;
 
@@ -126,7 +126,8 @@ mod tests {
         if let Some(Ok(s)) = stream.next().await {
             assert_eq!(s, cmd);
         } else {
-            assert!(false);
+            // assert!(false);
+            unreachable!()
         }
         Ok(())
     }

@@ -1,4 +1,4 @@
-use futures::{Future, TryStreamExt, future};
+use futures::{future, Future, TryStreamExt};
 use std::marker::PhantomData;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::compat::{Compat, FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
@@ -58,7 +58,7 @@ where
 
         Self {
             ctrl,
-            _conn: PhantomData::default(),
+            _conn: PhantomData,
         }
     }
 
@@ -75,10 +75,10 @@ mod tests {
 
     use super::*;
     use crate::{
-        CommandRequest, KvError, MemTable, ProstClientStream, ProstServerStream, Service, Storage,
-        TlsServerAcceptor, assert_res_ok,
-        network::tls::tls_utils::{tls_acceptor, tls_connector},
-        utils::DummyStream,
+        assert_res_ok, network::tls::tls_utils::{tls_acceptor, tls_connector}, utils::DummyStream, CommandRequest, KvError, MemTable, ProstClientStream,
+        ProstServerStream, Service,
+        Storage,
+        TlsServerAcceptor,
     };
     use anyhow::Result;
     use tokio::net::{TcpListener, TcpStream};
@@ -97,7 +97,7 @@ mod tests {
     {
         let listener = TcpListener::bind(addr).await?;
         let addr = listener.local_addr()?;
-        let service: Service = Service::new(store).into();
+        let service: Service = Service::new(store);
 
         tokio::spawn(async move {
             loop {

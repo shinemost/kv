@@ -1,7 +1,7 @@
 use snow::Builder;
+use std::error::Error;
 use std::fs::File;
 use std::io::Write;
-use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // 生成服务器密钥对

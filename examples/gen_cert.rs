@@ -42,7 +42,17 @@ fn create_cert(ca: &CA, domains: Vec<&str>, cn: &str, is_client: bool) -> Result
     } else {
         (Some(5 * 365), CertType::Server)
     };
-    let (cert, key) = generate_cert(ca, domains, "CN", "Acme Inc.", cn, CertSigAlgo::EcDsa,None, is_client, days)?;
+    let (cert, key) = generate_cert(
+        ca,
+        domains,
+        "CN",
+        "Acme Inc.",
+        cn,
+        CertSigAlgo::EcDsa,
+        None,
+        is_client,
+        days,
+    )?;
 
     Ok(CertPem {
         cert_type,

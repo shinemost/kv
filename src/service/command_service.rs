@@ -102,7 +102,7 @@ impl CommandService for Hmdel {
         let keys = self.keys;
         keys.into_iter()
             .map(|key| match store.del(&self.table, &key) {
-                Ok(Some(v)) => v.into(),
+                Ok(Some(v)) => v,
                 Ok(None) => KvError::NotFound(format!("table {},key {}", self.table, key)).into(),
                 Err(e) => e.into(),
             })

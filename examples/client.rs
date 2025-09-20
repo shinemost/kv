@@ -1,8 +1,8 @@
 use anyhow::Result;
 use bytes::BytesMut;
 use futures::prelude::*;
-use prost::Message;
 use kv::{CommandRequest, CommandResponse};
+use prost::Message;
 use tokio::net::TcpStream;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::info;

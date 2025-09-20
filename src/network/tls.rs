@@ -2,12 +2,12 @@ use std::io::Cursor;
 use std::sync::Arc;
 
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_rustls::TlsConnector;
+use tokio_rustls::rustls::{internal::pemfile, Certificate, ClientConfig, ServerConfig};
 use tokio_rustls::rustls::{AllowAnyAuthenticatedClient, NoClientAuth, PrivateKey, RootCertStore};
-use tokio_rustls::rustls::{Certificate, ClientConfig, ServerConfig, internal::pemfile};
 use tokio_rustls::webpki::DNSNameRef;
+use tokio_rustls::TlsConnector;
 use tokio_rustls::{
-    TlsAcceptor, client::TlsStream as ClientTlsStream, server::TlsStream as ServerTlsStream,
+    client::TlsStream as ClientTlsStream, server::TlsStream as ServerTlsStream, TlsAcceptor,
 };
 
 use crate::KvError;
@@ -104,7 +104,7 @@ impl TlsServerAcceptor {
         config
             .set_single_cert(certs, key)
             .map_err(|_| KvError::CertifcateParseError("server", "cert"))?;
-        config.set_protocols(&[Vec::from(&ALPN_KV[..])]);
+        config.set_protocols(&[Vec::from(ALPN_KV)]);
 
         Ok(Self {
             inner: Arc::new(config),
@@ -130,18 +130,18 @@ fn load_key(key: &str) -> Result<PrivateKey, KvError> {
     let mut cursor = Cursor::new(key);
 
     // 先尝试用 PKCS8 加载私钥
-    if let Ok(mut keys) = pemfile::pkcs8_private_keys(&mut cursor) {
-        if !keys.is_empty() {
-            return Ok(keys.remove(0));
-        }
+    if let Ok(mut keys) = pemfile::pkcs8_private_keys(&mut cursor)
+        && !keys.is_empty()
+    {
+        return Ok(keys.remove(0));
     }
 
     // 再尝试加载 RSA key
     cursor.set_position(0);
-    if let Ok(mut keys) = pemfile::rsa_private_keys(&mut cursor) {
-        if !keys.is_empty() {
-            return Ok(keys.remove(0));
-        }
+    if let Ok(mut keys) = pemfile::rsa_private_keys(&mut cursor)
+        && !keys.is_empty()
+    {
+        return Ok(keys.remove(0));
     }
 
     // 不支持的私钥类型

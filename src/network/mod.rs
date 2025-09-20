@@ -5,10 +5,10 @@ mod stream;
 mod stream_result;
 mod tls;
 
-pub use frame::{FrameCoder, read_frame};
+pub use frame::{read_frame, FrameCoder};
 use futures::{SinkExt, StreamExt};
 pub use multiplex::YamuxCtrl;
-pub use noise::{NoiseClientConnector, NoiseServerAcceptor, load_key};
+pub use noise::{load_key, NoiseClientConnector, NoiseServerAcceptor};
 pub use tls::{TlsClientConnector, TlsServerAcceptor};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::info;
@@ -87,7 +87,7 @@ mod tests {
     use std::net::SocketAddr;
     use tokio::net::{TcpListener, TcpStream};
 
-    use crate::{MemTable, Value, assert_res_ok};
+    use crate::{assert_res_ok, MemTable, Value};
 
     use super::*;
 
@@ -130,7 +130,7 @@ mod tests {
         let mut client = ProstClientStream::new(stream);
 
         let v: Value = Bytes::from(vec![0u8; 16384]).into();
-        let cmd = CommandRequest::new_hset("t2", "k2", v.clone().into());
+        let cmd = CommandRequest::new_hset("t2", "k2", v.clone());
         let res = client.execute_unary(cmd).await?;
 
         assert_res_ok(&res, &[Value::default()], &[]);
@@ -138,7 +138,7 @@ mod tests {
         let cmd = CommandRequest::new_hget("t2", "k2");
         let res = client.execute_unary(cmd).await?;
 
-        assert_res_ok(&res, &[v.into()], &[]);
+        assert_res_ok(&res, &[v], &[]);
 
         Ok(())
     }
@@ -150,7 +150,7 @@ mod tests {
         tokio::spawn(async move {
             loop {
                 let (stream, _) = listener.accept().await.unwrap();
-                let service: Service = Service::new(MemTable::new()).into();
+                let service: Service = Service::new(MemTable::new());
                 let server = ProstServerStream::new(stream, service);
                 tokio::spawn(server.process());
             }

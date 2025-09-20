@@ -14,7 +14,7 @@ impl MemTable {
     }
 
     /// 如果名为 name 的 hash table 不存在，则创建，否则返回
-    fn get_or_create_table(&self, name: &str) -> Ref<String, DashMap<String, Value>> {
+    fn get_or_create_table(&self, name: &str) -> Ref<'_, String, DashMap<String, Value>> {
         match self.tables.get(name) {
             Some(table) => table,
             None => {
@@ -66,5 +66,3 @@ impl From<(String, Value)> for Kvpair {
         Kvpair::new(value.0, value.1)
     }
 }
-
-

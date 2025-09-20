@@ -1,7 +1,7 @@
 use crate::{CommandResponse, KvError, Value};
 use dashmap::{DashMap, DashSet};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
@@ -87,12 +87,12 @@ impl Topic for Arc<Broadcaster> {
 
                 // 循环发送
                 for id in subscriptions.into_iter() {
-                    if let Some(tx) = self.subscriptions.get(&id) {
-                        if let Err(e) = tx.send(value.clone()).await {
-                            warn!("Publish to {} failed! error: {:?}", id, e);
-                            // client 中断连接
-                            ids.push(id);
-                        }
+                    if let Some(tx) = self.subscriptions.get(&id)
+                        && let Err(e) = tx.send(value.clone()).await
+                    {
+                        warn!("Publish to {} failed! error: {:?}", id, e);
+                        // client 中断连接
+                        ids.push(id);
                     }
                 }
             }
@@ -128,6 +128,7 @@ mod tests {
     use super::*;
     use crate::assert_res_ok;
     use std::convert::TryInto;
+    use std::slice::from_ref;
     use tokio::sync::mpsc::Receiver;
 
     #[tokio::test]
@@ -153,7 +154,7 @@ mod tests {
         let res2 = stream2.recv().await.unwrap();
 
         assert_eq!(res1, res2);
-        assert_res_ok(&res1, &[v.clone()], &[]);
+        assert_res_ok(&res1, from_ref(&v), &[]);
 
         // 如果 subscriber 取消订阅，则收不到新数据
         let result = b.clone().unsubscribe(lobby.clone(), id1 as _).unwrap();
@@ -165,7 +166,7 @@ mod tests {
 
         assert!(stream1.recv().await.is_none());
         let res2 = stream2.recv().await.unwrap();
-        assert_res_ok(&res2, &[v.clone()], &[]);
+        assert_res_ok(&res2, from_ref(&v), &[]);
     }
 
     pub async fn get_id(res: &mut Receiver<Arc<CommandResponse>>) -> u32 {

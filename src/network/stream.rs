@@ -1,6 +1,6 @@
-use crate::{read_frame, FrameCoder, KvError};
+use crate::{FrameCoder, KvError, read_frame};
 use bytes::BytesMut;
-use futures::{ready, FutureExt, Sink, Stream};
+use futures::{FutureExt, Sink, Stream, ready};
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -112,7 +112,7 @@ impl<S, Req, Res> Unpin for ProstStream<S, Req, Res> where S: Unpin {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{utils::DummyStream, CommandRequest};
+    use crate::{CommandRequest, utils::DummyStream};
     use anyhow::Result;
     use futures::prelude::*;
 

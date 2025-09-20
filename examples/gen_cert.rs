@@ -1,5 +1,5 @@
 use anyhow::Result;
-use certify::{generate_ca, generate_cert, CertSigAlgo, CertType, CA};
+use certify::{CA, CertSigAlgo, CertType, generate_ca, generate_cert};
 use tokio::fs;
 
 struct CertPem {

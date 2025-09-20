@@ -5,10 +5,10 @@ mod stream;
 mod stream_result;
 mod tls;
 
-pub use frame::{read_frame, FrameCoder};
+pub use frame::{FrameCoder, read_frame};
 use futures::{SinkExt, StreamExt};
 pub use multiplex::YamuxCtrl;
-pub use noise::{load_key, NoiseClientConnector, NoiseServerAcceptor};
+pub use noise::{NoiseClientConnector, NoiseServerAcceptor, load_key};
 pub use tls::{TlsClientConnector, TlsServerAcceptor};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::info;
@@ -87,7 +87,7 @@ mod tests {
     use std::net::SocketAddr;
     use tokio::net::{TcpListener, TcpStream};
 
-    use crate::{assert_res_ok, MemTable, Value};
+    use crate::{MemTable, Value, assert_res_ok};
 
     use super::*;
 

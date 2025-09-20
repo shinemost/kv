@@ -1,6 +1,6 @@
 use crate::service::topic::Topic;
 use crate::{CommandResponse, Publish, Subscribe, Unsubscribe};
-use futures::{stream, Stream};
+use futures::{Stream, stream};
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -38,7 +38,7 @@ impl TopicService for Publish {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{assert_res_error, assert_res_ok, dispatch_stream, Broadcaster, CommandRequest};
+    use crate::{Broadcaster, CommandRequest, assert_res_error, assert_res_ok, dispatch_stream};
     use futures::StreamExt;
     use std::{convert::TryInto, time::Duration};
     use tokio::time;

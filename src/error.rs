@@ -39,4 +39,7 @@ pub enum KvError {
 
     #[error("TLS error")]
     TlsError(#[from] tokio_rustls::rustls::TLSError),
+
+    #[error("Parse config error")]
+    ConfigError(#[from] toml::de::Error),
 }

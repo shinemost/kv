@@ -1,8 +1,7 @@
 use anyhow::Result;
 use futures::StreamExt;
-use kv::{CommandRequest, KvError, ProstClientStream, TlsClientConnector, YamuxCtrl};
+use kv::{start_client_with_config, ClientConfig, CommandRequest, KvError, ProstClientStream};
 use std::time::Duration;
-use tokio::net::TcpStream;
 use tokio::time;
 use tokio_util::compat::Compat;
 use tracing::info;
@@ -11,22 +10,10 @@ use tracing::info;
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
-    let ca_cert = include_str!("../fixtures/ca.cert");
-    let client_cert = include_str!("../fixtures/client.cert");
-    let client_key = include_str!("../fixtures/client.key");
+    let config: ClientConfig = toml::from_str(include_str!("../fixtures/client.conf"))?;
 
-    let addr = "127.0.0.1:9527";
-    // 连接服务器
-    let connector = TlsClientConnector::new(
-        "kvserver.acme.inc",
-        Some((client_cert, client_key)),
-        Some(ca_cert),
-    )?;
-    let stream = TcpStream::connect(addr).await?;
-    let stream = connector.connect(stream).await?;
-
-    // 打开一个 stream
-    let mut ctrl = YamuxCtrl::new_client(stream, None);
+    // 打开一个 yamux ctrl
+    let mut ctrl = start_client_with_config(&config).await?;
 
     let channel = "lobby";
     start_publishing(ctrl.open_stream().await?, channel)?;

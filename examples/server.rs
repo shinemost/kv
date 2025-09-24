@@ -28,6 +28,7 @@ async fn main() -> Result<()> {
                 }
             }
             info!("Client {:?} disconnected", addr);
+            info!("Client {:?} disconnected", addr);
         });
     }
 }

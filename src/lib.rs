@@ -1,20 +1,20 @@
+mod config;
 mod error;
 mod network;
 mod pb;
 mod service;
 mod storage;
-mod config;
 
+pub use config::*;
 pub use error::KvError;
 pub use network::*;
 pub use pb::abi::*;
 pub use service::*;
 pub use storage::*;
-pub use config::*;
-
 
 use anyhow::Result;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::time;
 use tokio_rustls::client;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
 use tracing::{info, instrument, span};
@@ -73,6 +73,8 @@ async fn start_tls_server<Store: Storage>(
                 let svc1 = svc.clone();
                 async move {
                     let stream = ProstServerStream::new(stream.compat(), svc1.clone());
+                    // 延迟 100ms 处理
+                    // time::sleep(time::Duration::from_millis(100)).await;
                     stream.process().await.unwrap();
                     Ok(())
                 }

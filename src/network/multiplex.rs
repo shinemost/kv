@@ -1,3 +1,4 @@
+use crate::ProstClientStream;
 use futures::{Future, TryStreamExt, future};
 use std::marker::PhantomData;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -63,9 +64,11 @@ where
     }
 
     /// 打开一个新的 stream
-    pub async fn open_stream(&mut self) -> Result<Compat<yamux::Stream>, ConnectionError> {
+    pub async fn open_stream(
+        &mut self,
+    ) -> Result<ProstClientStream<Compat<yamux::Stream>>, ConnectionError> {
         let stream = self.ctrl.open_stream().await?;
-        Ok(stream.compat())
+        Ok(ProstClientStream::new(stream.compat()))
     }
 }
 
@@ -75,8 +78,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        CommandRequest, KvError, MemTable, ProstClientStream, ProstServerStream, Service, Storage,
-        TlsServerAcceptor, assert_res_ok,
+        CommandRequest, KvError, MemTable, ProstServerStream, Service, Storage, TlsServerAcceptor,
+        assert_res_ok,
         network::tls::tls_utils::{tls_acceptor, tls_connector},
         utils::DummyStream,
     };
@@ -160,15 +163,12 @@ mod tests {
         let mut ctrl = YamuxCtrl::new_client(stream, None);
 
         // 从 client ctrl 中打开一个新的 yamux stream
-        let stream = ctrl.open_stream().await?;
-        // 封装成 ProstClientStream
-        let mut client = ProstClientStream::new(stream);
-
+        let mut stream = ctrl.open_stream().await?;
         let cmd = CommandRequest::new_hset("t1", "k1", "v1".into());
-        client.execute_unary(cmd).await?;
+        stream.execute_unary(cmd).await?;
 
         let cmd = CommandRequest::new_hget("t1", "k1");
-        let res = client.execute_unary(cmd).await?;
+        let res = stream.execute_unary(cmd).await?;
         assert_res_ok(&res, &["v1".into()], &[]);
 
         Ok(())

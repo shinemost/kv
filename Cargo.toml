@@ -33,8 +33,6 @@ snow = "0.10.0"
 thiserror = "2.0.12"
 tokio = { version = "1", features = ["full"] }
 tokio-rustls = "0.22"
-tracing = "0.1"# 日志处理
-tracing-subscriber = { version = "0.3", features = ["chrono","json"] }
 base64 = "0.13.1" # 日志处理
 futures = "0.3"
 yamux = "0.9"
@@ -42,9 +40,15 @@ tokio-util = { version = "0.6", features = ["compat"] }
 tokio-stream = "0.1.17"
 serde = { version = "1.0.226", features = ["derive"] }
 toml = "0.9.7"
-criterion = { version = "0.7.0", features = ["async_futures", "async_tokio", "html_reports"] }
 rand = "0.8.5"
-
+#regex = { version = "1.11.2", features = ["unicode-case"] }
+tracing = "0.1.37"
+tracing-opentelemetry = "0.19.0"
+tracing-subscriber = { version = "0.3.17"}
+opentelemetry-semantic-conventions = { version="0.11.0" }
+opentelemetry = { version = "0.19.0", features = ["rt-tokio", "trace"] }
+opentelemetry-otlp = { version = "0.12.0", features = ["tonic", "metrics"] }
+opentelemetry_sdk = "0.19.0"
 
 [dev-dependencies]
 tempfile = "3.20.0"
@@ -52,6 +56,7 @@ async-prost = "0.3" # 支持把 protobuf 封装成 TCP frame
 futures = "0.3" # 提供 Stream trait
 tokio-util = { version = "0.6", features = ["codec"] }
 certify = "0.6"
+criterion = { version = "0.7.0", features = ["async_futures", "async_tokio", "html_reports","cargo_bench_support"] }
 
 [build-dependencies]
 prost-build = "0.9" # 编译 protobuf

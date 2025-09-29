@@ -25,4 +25,7 @@ kvns:
 build:
 	RUSTFLAGS="-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld" cargo build
 
-.PHONY: kvs kvc build kvnc kvns
+bench:
+	 RUST_LOG=info cargo bench
+
+.PHONY: kvs kvc build kvnc kvns bench

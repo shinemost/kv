@@ -1,7 +1,7 @@
 use crate::{CommandRequest, CommandResponse, KvError, Storage, command_request::RequestData};
 use futures::stream;
 use std::sync::Arc;
-use tracing::debug;
+use tracing::{debug, instrument};
 
 mod command_service;
 mod topic;
@@ -54,6 +54,7 @@ impl Service {
         }
     }
 
+    #[instrument(name = "service_execute", skip_all)]
     pub fn execute(&self, cmd: CommandRequest) -> StreamingResponse {
         debug!("Got request: {:?}", cmd);
         // self.store.deref()解引用 Arc<dyn Storage> -> &dyn Storage
@@ -242,7 +243,7 @@ mod tests {
 
         let mut res = service.execute(CommandRequest::new_hset("t1", "k1", "v1".into()));
         let data = res.next().await.unwrap();
-        assert_eq!(data.status, StatusCode::CREATED.as_u16() as _);
+        assert_eq!(data.status, StatusCode::CREATED.as_u16() as u32);
         assert_eq!(data.message, "");
         assert_eq!(data.values, vec![Value::default()]);
     }

@@ -1,6 +1,7 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
+use crate::KvError;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::TlsConnector;
 use tokio_rustls::rustls::{AllowAnyAuthenticatedClient, NoClientAuth, PrivateKey, RootCertStore};
@@ -9,8 +10,7 @@ use tokio_rustls::webpki::DNSNameRef;
 use tokio_rustls::{
     TlsAcceptor, client::TlsStream as ClientTlsStream, server::TlsStream as ServerTlsStream,
 };
-
-use crate::KvError;
+use tracing::instrument;
 
 /// KV Server 自己的 ALPN (Application-Layer Protocol Negotiation)
 const ALPN_KV: &str = "kv";
@@ -30,8 +30,9 @@ pub struct TlsClientConnector {
 
 impl TlsClientConnector {
     /// 加载 client cert / CA cert，生成 ClientConfig
+    #[instrument(name = "tls_connector_new", skip_all)]
     pub fn new(
-        domain: impl Into<String>,
+        domain: impl Into<String> + std::fmt::Debug,
         identity: Option<(&str, &str)>,
         server_ca: Option<&str>,
     ) -> Result<Self, KvError> {
@@ -44,17 +45,17 @@ impl TlsClientConnector {
             config.set_single_client_cert(certs, key)?;
         }
 
-        // 加载本地信任的根证书链
-        config.root_store = match rustls_native_certs::load_native_certs() {
-            Ok(store) | Err((Some(store), _)) => store,
-            Err((None, error)) => return Err(error.into()),
-        };
-
         // 如果有签署服务器的 CA 证书，则加载它，这样服务器证书不在根证书链
         // 但是这个 CA 证书能验证它，也可以
         if let Some(cert) = server_ca {
             let mut buf = Cursor::new(cert);
             config.root_store.add_pem_file(&mut buf).unwrap();
+        } else {
+            // 加载本地信任的根证书链
+            config.root_store = match rustls_native_certs::load_native_certs() {
+                Ok(store) | Err((Some(store), _)) => store,
+                Err((None, error)) => return Err(error.into()),
+            };
         }
 
         Ok(Self {
@@ -64,6 +65,7 @@ impl TlsClientConnector {
     }
 
     /// 触发 TLS 协议，把底层的 stream 转换成 TLS stream
+    #[instrument(name = "tls_client_connect", skip_all)]
     pub async fn connect<S>(&self, stream: S) -> Result<ClientTlsStream<S>, KvError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
@@ -81,6 +83,7 @@ impl TlsClientConnector {
 
 impl TlsServerAcceptor {
     /// 加载 server cert / CA cert，生成 ServerConfig
+    #[instrument(name = "tls_acceptor_new", skip_all)]
     pub fn new(cert: &str, key: &str, client_ca: Option<&str>) -> Result<Self, KvError> {
         let certs = load_certs(cert)?;
         let key = load_key(key)?;
@@ -112,6 +115,7 @@ impl TlsServerAcceptor {
     }
 
     /// 触发 TLS 协议，把底层的 stream 转换成 TLS stream
+    #[instrument(name = "tls_server_accept", skip_all)]
     pub async fn accept<S>(&self, stream: S) -> Result<ServerTlsStream<S>, KvError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,

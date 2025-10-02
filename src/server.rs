@@ -8,7 +8,8 @@ use opentelemetry_sdk::{Resource, runtime, trace};
 use std::env;
 use tokio::fs;
 use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::fmt::format;
+use tracing_subscriber::fmt::time::LocalTime;
+use tracing_subscriber::fmt::{format, time};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer, fmt};
@@ -74,9 +75,22 @@ async fn main() -> Result<()> {
         .with_writer(non_blocking)
         .and_then(env_filter.clone());
 
+    // 日志格式 format
+    let format = tracing_subscriber::fmt::format()
+        .with_thread_ids(true)
+        .with_thread_names(true)
+        .with_file(true)
+        .with_line_number(true)
+        .with_level(true)
+        .with_source_location(true)
+        .with_target(true)
+        // .with_timer(time::ChronoLocal::new("%Y-%m-%d %H:%M:%S %Z".to_string()))
+        .with_timer(time::LocalTime::rfc_3339())
+        .compact();
+
     // 针对控制台日志的 level 过滤
     let std_layer = fmt::layer()
-        .event_format(format().compact())
+        .event_format(format.clone())
         .with_writer(std::io::stdout)
         .and_then(env_filter.clone());
 

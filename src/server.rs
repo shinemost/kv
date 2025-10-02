@@ -11,7 +11,7 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt::format;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::{EnvFilter, Layer, fmt};
 
 const OTLP_ENDPOINT: &str = "http://localhost:4317";
 
@@ -42,7 +42,11 @@ async fn main() -> Result<()> {
         )
         .install_batch(runtime::Tokio)?;
 
-    let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+    let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer).boxed();
+
+    global::set_text_map_propagator(TraceContextPropagator::new());
+    global::tracer("kv_server");
+
     // 添加
     let log = &config.log;
     let file_appender = match log.rotation {
@@ -64,24 +68,31 @@ async fn main() -> Result<()> {
 
     let env_filter = EnvFilter::from_default_env().add_directive(base_env_filter.into());
 
+    // 针对文件日志的 level 过滤
     let fmt_layer = fmt::layer()
         .event_format(format().compact())
-        .with_writer(non_blocking);
+        .with_writer(non_blocking)
+        .and_then(env_filter.clone());
 
-    // 增加控制台输出
+    // 针对控制台日志的 level 过滤
     let std_layer = fmt::layer()
         .event_format(format().compact())
-        .with_writer(std::io::stdout);
+        .with_writer(std::io::stdout)
+        .and_then(env_filter.clone());
 
-    tracing_subscriber::registry()
-        .with(env_filter)
-        .with(fmt_layer)
-        .with(std_layer)
-        .with(opentelemetry)
-        .init();
-
-    global::set_text_map_propagator(TraceContextPropagator::new());
-    global::tracer("kv_server");
+    // 判断是否启用了日志文件输出
+    if log.enable_log_file {
+        tracing_subscriber::registry()
+            .with(opentelemetry)
+            .with(std_layer)
+            .with(fmt_layer)
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(opentelemetry)
+            .with(std_layer)
+            .init();
+    }
 
     start_server_with_config(&config).await?;
 

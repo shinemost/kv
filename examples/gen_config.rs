@@ -25,6 +25,7 @@ fn main() -> Result<()> {
             path: "/tmp/kv-log".into(),
             rotation: RotationConfig::Daily,
             log_level: LogLevel::Debug,
+            enable_log_file: true,
         },
     };
 

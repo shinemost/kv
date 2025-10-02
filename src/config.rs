@@ -47,6 +47,7 @@ pub struct LogConfig {
     pub path: String,
     pub rotation: RotationConfig,
     pub log_level: LogLevel,
+    pub enable_log_file: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

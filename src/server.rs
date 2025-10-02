@@ -68,9 +68,15 @@ async fn main() -> Result<()> {
         .event_format(format().compact())
         .with_writer(non_blocking);
 
+    // 增加控制台输出
+    let std_layer = fmt::layer()
+        .event_format(format().compact())
+        .with_writer(std::io::stdout);
+
     tracing_subscriber::registry()
         .with(env_filter)
         .with(fmt_layer)
+        .with(std_layer)
         .with(opentelemetry)
         .init();
 

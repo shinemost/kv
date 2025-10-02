@@ -11,10 +11,10 @@ server-codec:
 	RUST_LOG=info cargo run --example server_with_codec --quiet
 
 kvc:
-	RUST_LOG=info cargo run --bin kvc --quiet
+	RUST_LOG=INFO cargo run --bin kvc --quiet
 
 kvs:
-	RUST_LOG=info cargo run --bin kvs --quiet
+	RUST_LOG=INFO cargo run --bin kvs --quiet
 
 kvnc:
 	RUST_LOG=info cargo run --bin kvnc --quiet

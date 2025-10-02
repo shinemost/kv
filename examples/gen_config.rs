@@ -1,6 +1,9 @@
 use anyhow::Result;
+use kv::{
+    ClientConfig, ClientTlsConfig, GeneralConfig, LogConfig, LogLevel, RotationConfig,
+    ServerConfig, ServerTlsConfig, StorageConfig,
+};
 use std::fs;
-use kv::{ClientConfig, ClientTlsConfig, GeneralConfig, ServerConfig, ServerTlsConfig, StorageConfig};
 
 fn main() -> Result<()> {
     const CA_CERT: &str = include_str!("../fixtures/ca.cert");
@@ -17,6 +20,11 @@ fn main() -> Result<()> {
             cert: SERVER_CERT.into(),
             key: SERVER_KEY.into(),
             ca: None,
+        },
+        log: LogConfig {
+            path: "/tmp/kv-log".into(),
+            rotation: RotationConfig::Daily,
+            log_level: LogLevel::Debug,
         },
     };
 

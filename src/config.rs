@@ -7,6 +7,7 @@ pub struct ServerConfig {
     pub general: GeneralConfig,
     pub storage: StorageConfig,
     pub tls: ServerTlsConfig,
+    pub log: LogConfig,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -39,6 +40,30 @@ pub struct ClientTlsConfig {
     pub domain: String,
     pub identity: Option<(String, String)>,
     pub ca: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LogConfig {
+    pub path: String,
+    pub rotation: RotationConfig,
+    pub log_level: LogLevel,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum RotationConfig {
+    Hourly,
+    Daily,
+    Never,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum LogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+    Fatal,
 }
 
 impl ServerConfig {
